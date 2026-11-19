@@ -5,7 +5,7 @@ The retrieval tool's Python function is `retrieve_context_tool` (it can't
 shadow the `retrieve_context` import from swadb.context), but the tool is
 registered — and documented in README.md, docs/API_REFERENCE.md, and
 api_documentation/mcp.md — as `retrieve_context`. This test pins the
-registered names so a rename in either direction shows up in CI.
+registered names so a rename in either direction fails the test suite.
 """
 import anyio
 import pytest

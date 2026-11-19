@@ -348,6 +348,96 @@ curl http://127.0.0.1:8420/api/mcp/status
 
 ---
 
+## Checks and Releases
+
+This repository runs no GitHub Actions. Nothing tests, builds, or publishes on push, pull request, tag, or schedule, and pushing a `vX.Y.Z` tag publishes nothing. The commands below are the steps the removed workflows (`test.yml`, `slow-tests.yml`, `publish.yml`, `sidecar.yml`) ran. Run them by hand from the repository root.
+
+### Install the test environment
+
+```bash
+python -m pip install --upgrade pip
+HNSWLIB_NO_NATIVE=1 python -m pip install --no-cache-dir "hnswlib>=0.8.0"
+python -m pip install -e ".[dev]"
+```
+
+`HNSWLIB_NO_NATIVE=1` builds hnswlib portably. See `api_documentation/troubleshooting.md` for the PowerShell form.
+
+### Fast suite
+
+```bash
+python -m pytest tests/ -v -m "not slow" --tb=short
+```
+
+Run it before merging to `main`. The removed matrix ran it on Python 3.10 to 3.13 on Ubuntu and on 3.10 and 3.13 on macOS and Windows; cover what you can before a release.
+
+### Slow suite
+
+```bash
+python -m pytest tests/ -v -m "slow" --tb=short
+```
+
+Runs the `slow`-marked tests: the HTTP-endpoint integration suite (it boots a real `swadb serve`) and the tests that load the embedding model. It used to run weekly; nothing schedules it now, so run it before every release. The first run downloads the embedding model (~90 MB).
+
+### Packaging check
+
+Start from a clean tree so only the new build is checked:
+
+```bash
+rm -rf build/ dist/ wheel-test/
+python -m pip install --upgrade pip build twine
+python -m build
+python -m twine check --strict dist/*
+python -m zipfile -l dist/swadb-*-py3-none-any.whl | grep -E "static/(index\.html|css/main\.css|js/app\.js)"
+python -m venv wheel-test
+wheel-test/bin/python -m pip install --upgrade pip
+wheel-test/bin/python -m pip install dist/*.whl
+wheel-test/bin/python -c "import swadb; print(swadb.__version__)"
+wheel-test/bin/python -m pip check
+```
+
+`dist/` must hold exactly one `swadb-*-py3-none-any.whl` and one `swadb-*.tar.gz`, and the `zipfile` line must list all three static assets. On Windows, use `wheel-test\Scripts\python` instead of `wheel-test/bin/python`.
+
+### Publish to PyPI
+
+1. Set the same version in `pyproject.toml` (`[project].version`) and `swadb/__init__.py` (`__version__`), and move the `[Unreleased]` entries in `CHANGELOG.md` under it. The release tag is `vX.Y.Z` (no prereleases) and must match both values:
+
+   ```bash
+   python -c "import tomllib, swadb; print(tomllib.load(open('pyproject.toml', 'rb'))['project']['version'], swadb.__version__)"
+   ```
+
+   (`tomllib` needs Python 3.11 or later.)
+
+2. Run the fast suite, the slow suite, and the packaging check above.
+
+3. Tag the release commit on `main` and push the tag:
+
+   ```bash
+   git tag vX.Y.Z
+   git push origin vX.Y.Z
+   ```
+
+4. Upload the distributions the packaging check verified:
+
+   ```bash
+   python -m twine upload dist/*
+   ```
+
+   This needs a PyPI API token with upload rights to the `swadb` project, supplied as `TWINE_USERNAME=__token__` and `TWINE_PASSWORD=<token>` or through `~/.pypirc`. The PyPI trusted publisher (OIDC) only worked from the removed workflow, and a local upload does not produce the PyPI attestations that workflow generated.
+
+5. Create the GitHub release from the same files (`gh` must be authenticated with write access to the repository):
+
+   ```bash
+   gh release create vX.Y.Z --verify-tag --title vX.Y.Z --generate-notes dist/*
+   ```
+
+   If the release already exists, use `gh release upload vX.Y.Z dist/* --clobber`.
+
+### Sidecar binaries
+
+The per-OS sidecar archives are built by hand on each platform and attached to the same GitHub release. See [`sidecar/README.md`](../sidecar/README.md#build).
+
+---
+
 ## Database File
 
 The `.db` file is the single source of truth. It contains:

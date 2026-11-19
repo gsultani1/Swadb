@@ -6,7 +6,8 @@
 # generation around it: torch 2.2 was compiled against NumPy 1.x (NumPy 2
 # crashes it), and transformers >= 4.42-era releases require torch >= 2.4.
 #
-# Used only by .github/workflows/sidecar.yml for the macos-15-intel job:
+# Used only for Intel-Mac sidecar builds (see sidecar/README.md), from
+# the repository root:
 #   python -m pip install -e . ... -c sidecar/constraints-macos-x86_64.txt
 # All other platforms build with the current unconstrained stack.
 numpy==1.26.4
