@@ -31,11 +31,57 @@ pip install -e ..            # swadb + runtime deps in the build env
 bash build-sidecar.sh        # prepares hf cache, runs PyInstaller, tars
 ```
 
-CI (`.github/workflows/sidecar.yml`) builds per-OS on release tags and
-attaches the archives to the GitHub Release. Builds are unsigned in v1 —
-macOS Gatekeeper quarantines downloaded unsigned binaries
-(`xattr -dr com.apple.quarantine` or distribution inside a signed app
-bundle sidesteps it).
+This repository runs no GitHub Actions, so nothing builds or uploads the
+sidecar on release tags. Run the steps above from `sidecar/` on each
+release platform (PyInstaller does not cross-compile). The removed
+`sidecar.yml` covered linux-x64 (built on Ubuntu 22.04 for an old glibc
+baseline), darwin-arm64, darwin-x64, and win32-x64.
+
+- **Before `build-sidecar.sh`**: `python -m pip check` must pass, and
+  `python -c "import swadb; print(swadb.__version__)"` must equal the
+  release tag without its leading `v`.
+- **Intel Mac (darwin-x64)**: replace `pip install -e ..` with
+  `pip install -e .. -c constraints-macos-x86_64.txt` (the legacy ML
+  stack; PyTorch ships no newer Intel-Mac wheels).
+- **Windows (git-bash)**: the contract asks for a `.zip`, but
+  `build-sidecar.sh` writes a `.tar.gz`. Zip the bundle instead:
+  `(cd dist && 7z a ../swadb-sidecar-v<version>-win32-x64.zip swadb-sidecar)`.
+
+Hermetic smoke test of the finished bundle, with every online and cache
+path poisoned (the bundle must be self-sufficient):
+
+```bash
+(
+  set -e
+  export HF_HUB_OFFLINE=1 HF_HOME=/nonexistent TRANSFORMERS_OFFLINE=1 SWADB_EMBED_DEVICE=cpu
+  BIN=dist/swadb-sidecar/swadb; [ -x "$BIN" ] || BIN=dist/swadb-sidecar/swadb.exe
+  test -f dist/swadb-sidecar/_internal/swadb/static/index.html
+  test -d dist/swadb-sidecar/_internal/hf-cache/hub
+  D=$(mktemp -d)
+  "$BIN" --db "$D/t.db" init
+  "$BIN" --db "$D/t.db" memory add "hermetic smoke test observation"
+  "$BIN" --db "$D/t.db" memory search "hermetic" | grep -qi "smoke"
+  "$BIN" --db "$D/t.db" serve --host 127.0.0.1 --port 18420 &
+  SERVER_PID=$!
+  for _ in $(seq 1 30); do curl -sf http://127.0.0.1:18420/api/health && break; sleep 1; done
+  curl -sf http://127.0.0.1:18420/api/health | grep -q '"status": "ok"'
+  kill $SERVER_PID
+  echo "smoke test passed"
+)
+```
+
+GitHub caps release assets at 2 GiB; the removed workflow rejected any
+archive over 1900 MB (usually a CUDA torch in the bundle). Attach each
+platform's archive (`.tar.gz`, or `.zip` on Windows) to the release
+created in [Checks and Releases](../docs/DEVELOPMENT.md#checks-and-releases):
+
+```bash
+gh release upload vX.Y.Z swadb-sidecar-v<version>-<os>-<arch>.tar.gz --clobber
+```
+
+Builds are unsigned in v1: macOS Gatekeeper quarantines downloaded
+unsigned binaries (`xattr -dr com.apple.quarantine` or distribution
+inside a signed app bundle sidesteps it).
 
 ## Scope decisions (v1)
 
@@ -54,9 +100,10 @@ bundle sidesteps it).
   PATH (`swadb/pyexec.py`); without one they return a readable error.
   Bash skills are unaffected.
 - **`SWADB_EMBED_DEVICE`** forces the torch device for the embedding
-  model (unset = auto). CI sets `cpu` everywhere: GitHub's arm64 macOS
-  runners expose an MPS pool so small that loading the model OOMs. End
-  users on real Macs get MPS/auto by default.
+  model (unset = auto). The smoke test above sets `cpu`, as the removed
+  CI did everywhere: GitHub's hosted arm64 macOS runners expose an MPS
+  pool so small that loading the model OOMs. End users on real Macs get
+  MPS/auto by default.
 
 ## Size / startup (Linux x64, CPU torch)
 

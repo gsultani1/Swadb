@@ -1,6 +1,6 @@
 # swadb
 
-[![Tests](https://github.com/gsultani1/AgentDB/actions/workflows/test.yml/badge.svg)](https://github.com/gsultani1/AgentDB/actions/workflows/test.yml) [![PyPI](https://img.shields.io/pypi/v/swadb)](https://pypi.org/project/swadb/) ![Python versions](https://img.shields.io/pypi/pyversions/swadb) ![License](https://img.shields.io/pypi/l/swadb)
+[![PyPI](https://img.shields.io/pypi/v/swadb)](https://pypi.org/project/swadb/) ![Python versions](https://img.shields.io/pypi/pyversions/swadb) ![License](https://img.shields.io/pypi/l/swadb)
 
 A sovereign, local-first agent memory system with tiered knowledge, an empirical knowledge graph, MCP-native agent communication, multi-agent support, markdown authoring, and external chat migration.
 
@@ -192,6 +192,12 @@ python -m pytest tests/ -v -m ""
 The suite is organized to catch the "broken handler shape" bug class — every
 CRUD function with a non-trivial signature has a dedicated test in
 `tests/test_crud_signatures.py`. Add one when you ship a new endpoint.
+
+This repository runs no GitHub Actions: nothing tests, builds, or publishes
+on push, pull request, tag, or schedule. Run the checks by hand before
+merging and releasing. [Checks and Releases](docs/DEVELOPMENT.md#checks-and-releases)
+lists the exact commands for the fast suite, the slow suite, the packaging
+check, PyPI publishing, and the sidecar binaries.
 
 ---
 

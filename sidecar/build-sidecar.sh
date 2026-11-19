@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# Build the self-contained swadb sidecar (Linux/macOS; CI runs the same
-# steps per-OS — PyInstaller does not cross-compile).
+# Build the self-contained swadb sidecar (Linux/macOS). Run it once on
+# each release platform: PyInstaller does not cross-compile.
 #
 # Prereqs: a Python env with swadb installed (pip install -e ..) and its
 # runtime deps present. Produces:
@@ -19,7 +19,7 @@ VERSION=$(python -c 'import swadb; print(swadb.__version__)')
 case "$(uname -s)" in
     Linux)  OS=linux ;;
     Darwin) OS=darwin ;;
-    *)      OS=win32 ;;   # git-bash on Windows CI
+    *)      OS=win32 ;;   # git-bash on Windows
 esac
 case "$(uname -m)" in
     arm64|aarch64) ARCH=arm64 ;;

@@ -7,6 +7,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Removed
+- **GitHub Actions workflows** (`test.yml`, `slow-tests.yml`,
+  `publish.yml`, `sidecar.yml`, `actionlint.yml`). The repository runs no
+  hosted CI: tests, packaging checks, PyPI publishing, and sidecar builds
+  are run by hand as documented in `docs/DEVELOPMENT.md` (Checks and
+  Releases) and `sidecar/README.md`. Pushing a `vX.Y.Z` tag no longer
+  publishes anything.
+
 ## [0.3.0] — 2026-07-15
 
 Server hardening for concurrent IDE integrations (e.g. Fable AIIDE):
